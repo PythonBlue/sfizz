@@ -63,6 +63,7 @@ void ADSREnvelope::reset(const EGDescription& desc, const Region& region, const 
     );
     currentValue = this->start;
     currentState = State::Delay;
+    attackCount = 0;
     decayCount = 1 - this->sustain;
 }
 
@@ -103,9 +104,9 @@ void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
             while (count < size && (currentValue) < 1)
             {
                 attackCount = clamp(attackCount + attackStep, 0.0f, 1.0f);
-                if (attackShape < 0)
+                if (attackShape <= 0)
                     currentValue = 1 * pow(attackCount, -attackShape + 1);
-               else
+                else
                     currentValue = 1 * pow(attackCount, 1 / attackShape + 1);
                 output[count++] = currentValue;
             }
@@ -124,7 +125,7 @@ void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
             while (count < size && (currentValue > sustain))
             {
                 decayCount = clamp(decayCount - decayRate * (1.0f - sustain), 0.0f, 1.0f - sustain);
-                if (decayShape < 0)
+                if (decayShape <= 0)
                     currentValue = sustain + 1 * pow(decayCount, -decayShape + 1);
                 else
                     currentValue = sustain + 1 * pow(decayCount, 1 / (decayShape + 1));
@@ -151,7 +152,7 @@ void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
             while (count < size && (currentValue > config::egReleaseThreshold))
             {
                 releaseCount = clamp(releaseCount - releaseRate, 0.0f, 1.0f);
-                if (releaseShape < 0)
+                if (releaseShape <= 0)
                     currentValue = releaseValue * pow(releaseCount, -releaseShape * 1 + 1);
                 else
                     currentValue = releaseValue * pow(releaseCount, 1 / (releaseShape * 1 + 1));
