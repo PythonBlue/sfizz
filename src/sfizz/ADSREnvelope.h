@@ -103,7 +103,7 @@ private:
     Float attackCount { 0 };
     Float decayCount { 1 };
     Float releaseCount { 1 };
-    Float releaseValue { 1 };
+    Float releaseValue { 0 };
 
     Float attackShape {Default::flexEGPointShape};
     Float decayShape {Default::flexEGPointShape3};

@@ -204,7 +204,7 @@ void ADSREnvelope::startRelease(int releaseDelay) noexcept
     decayCount = 1 - sustain;
     releaseCount = 1;
     shouldRelease = true;
-    this->releaseDelay = releaseDelay;
+    this->releaseDelay = 0;
 }
 
 void ADSREnvelope::setReleaseTime(Float timeInSeconds) noexcept
