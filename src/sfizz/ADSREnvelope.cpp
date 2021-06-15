@@ -32,7 +32,7 @@ Float ADSREnvelope::secondsToLinRate(Float timeInSeconds) const noexcept
 Float ADSREnvelope::secondsToExpRate(Float timeInSeconds) const noexcept
 {
     if (timeInSeconds <= 0)
-        return Float(0.0);
+        return Float(1);
 
     timeInSeconds = std::max(Float(25e-3), timeInSeconds);
     return 1 / (sampleRate * timeInSeconds);
@@ -63,8 +63,6 @@ void ADSREnvelope::reset(const EGDescription& desc, const Region& region, const 
     );
     currentValue = this->start;
     currentState = State::Delay;
-    attackCount = 0;
-    decayCount = 1 - this->sustain;
 }
 
 void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
@@ -96,18 +94,20 @@ void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
             while (count < size && delay-- > 0) {
                 currentValue = start;
                 output[count++] = currentValue;
+                attackCount = 0;
             }
             if (delay <= 0)
+                attackCount = 0;
                 currentState = State::Attack;
             break;
         case State::Attack:
             while (count < size && (currentValue) < 1)
             {
-                attackCount = clamp(attackCount + attackStep, 0.0f, 1.0f);
+                attackCount = min(attackCount + attackStep, 1.0f);
                 if (attackShape <= 0)
-                    currentValue = 1 * pow(attackCount, -attackShape + 1);
+                    currentValue = this->start + (1 - this->start) * pow(attackCount, -attackShape + 1);
                 else
-                    currentValue = 1 * pow(attackCount, 1 / attackShape + 1);
+                    currentValue = this->start + (1 - this->start) * pow(attackCount, 1 / attackShape + 1);
                 output[count++] = currentValue;
             }
             if (currentValue >= 1) {
@@ -118,17 +118,21 @@ void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
         case State::Hold:
             while (count < size && hold-- > 0)
                 output[count++] = currentValue;
+                decayCount = currentValue - this->sustain + hold;
             if (hold <= 0)
+                decayCount = currentValue - this->sustain;
                 currentState = State::Decay;
             break;
         case State::Decay:
-            while (count < size && (currentValue > sustain))
+            while (count < size && (currentValue > this->sustain))
             {
-                decayCount = clamp(decayCount - decayRate * (1.0f - sustain), 0.0f, 1.0f - sustain);
-                if (decayShape <= 0)
-                    currentValue = sustain + 1 * pow(decayCount, -decayShape + 1);
+                decayCount = clamp(decayCount - decayRate * (1.0f - this->sustain), 0.0f, 1.0f);
+                if (decayShape == 0)
+                    currentValue = this->sustain + 1 * decayCount;
+                else if (decayShape < 0)
+                    currentValue = pow(this->sustain, 1 / (-decayShape + 1)) + 1 * pow(decayCount, -decayShape + 1);
                 else
-                    currentValue = sustain + 1 * pow(decayCount, 1 / (decayShape + 1));
+                    currentValue = pow(this->sustain, (decayShape + 1)) + 1 * pow(decayCount, 1 / (decayShape + 1));
                 output[count++] = currentValue;
             }
             if (currentValue <= sustainThreshold) {
@@ -199,9 +203,7 @@ void ADSREnvelope::startRelease(int releaseDelay) noexcept
 {
     this->releaseValue = this->currentValue;
     if (this->currentValue < 0.00001f)
-        this->releaseValue = sustain;
-    attackCount = 0;
-    decayCount = 1 - sustain;
+        this->releaseValue = this->sustain;
     releaseCount = 1;
     shouldRelease = true;
     this->releaseDelay = 0;
