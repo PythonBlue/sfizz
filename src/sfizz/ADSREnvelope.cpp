@@ -106,9 +106,9 @@ void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
             while (count < size && (currentValue) < 1)
             {
                 if (attackShape <= 0)
-                    currentValue = this->start + (1 - this->start) * pow(attackCount, -attackShape + 1);
+                    currentValue = start + (1 - start) * pow(attackCount, -attackShape + 1);
                 else
-                    currentValue = this->start + (1 - this->start) * pow(attackCount, 1 / attackShape + 1);
+                    currentValue = start + (1 - start) * pow(attackCount, 1 / attackShape + 1);
                 output[count++] = currentValue;
                 attackCount = min(attackCount + attackStep, 1.0f);
             }
@@ -120,24 +120,24 @@ void ADSREnvelope::getBlock(absl::Span<Float> output) noexcept
         case State::Hold:
             while (count < size && hold-- > 0)
                 output[count++] = currentValue;
-                decayCount = currentValue - this->sustain;
+                decayCount = currentValue;
             if (hold <= 0)
             {
-                decayCount = currentValue - this->sustain;
+                decayCount = currentValue;
                 currentState = State::Decay;
             }
             break;
         case State::Decay:
-            while (count < size && (currentValue > this->sustain))
+            while (count < size && (currentValue > sustain))
             {
                 if (decayShape == 0)
-                    currentValue = this->sustain + 1 * decayCount;
+                    currentValue = sustain + 1 * decayCount;
                 else if (decayShape < 0)
-                    currentValue = pow(this->sustain, 1 / (-decayShape * this->sustain + 1)) + 1 * pow(decayCount, -decayShape + 1);
+                    currentValue = sustain + (1.0f - sustain) * pow(decayCount, -decayShape + 1);
                 else
-                    currentValue = pow(this->sustain, (decayShape * this->sustain + 1)) + 1 * pow(decayCount, 1 / (decayShape + 1));
+                    currentValue = sustain + (1.0f - sustain) * pow(decayCount, 1 / (decayShape + 1));
                 output[count++] = currentValue;
-                decayCount = clamp(decayCount - decayRate * (1.0f - this->sustain), 0.0f, 1.0f);
+                decayCount = clamp(decayCount - decayRate, 0.0f, 1.0f);
             }
             if (currentValue <= sustainThreshold) {
                 currentState = State::Sustain;
